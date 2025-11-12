@@ -1,0 +1,500 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #map {
+            flex: 1;
+            width: 100%;
+        }
+
+        .control-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            width: 300px;
+        }
+
+        .control-panel h2 {
+            margin-bottom: 15px;
+            font-size: 20px;
+            color: #333;
+        }
+
+        .section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .section h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #2196F3;
+        }
+
+        .radius-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .radius-control input[type="range"] {
+            flex: 1;
+        }
+
+        .radius-value {
+            min-width: 50px;
+            text-align: center;
+            font-weight: 600;
+            color: #2196F3;
+            font-size: 16px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 8px;
+        }
+
+        .btn-primary {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1976D2;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn-success {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #45a049;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #da190b;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .stat-box {
+            background: #f5f5f5;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2196F3;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            margin-top: 4px;
+            display: block;
+        }
+
+        .performance {
+            text-align: center;
+            margin-top: 10px;
+            padding: 8px;
+            background: #e3f2fd;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #1976d2;
+            font-weight: 600;
+        }
+
+        .instruction {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #856404;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .creating-mode {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="control-panel">
+        <h2>🎯 Event Tracker</h2>
+        
+        <!-- Radius Control -->
+        <div class="section">
+            <h3>Search Radius</h3>
+            <div class="form-group">
+                <div class="radius-control">
+                    <input type="range" id="radiusSlider" min="1" max="50" value="5" step="1">
+                    <span class="radius-value" id="radiusValue">5 km</span>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="searchEvents()">🔍 Search Events</button>
+        </div>
+
+        <!-- Create Event -->
+        <div class="section">
+            <h3>Create Event</h3>
+            <div class="form-group">
+                <input type="text" id="eventName" placeholder="Enter event name" />
+            </div>
+            <button class="btn btn-success" id="createBtn" onclick="startCreateMode()">
+                📍 Click Map to Place Event
+            </button>
+            <div id="createInstruction" class="instruction" style="display: none;">
+                👆 Click anywhere on the map
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="section">
+            <h3>Statistics</h3>
+            <div class="stats">
+                <div class="stat-box">
+                    <span class="stat-value" id="visibleCount">0</span>
+                    <span class="stat-label">Visible</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-value" id="totalCount">0</span>
+                    <span class="stat-label">Total DB</span>
+                </div>
+            </div>
+            <div class="performance" id="performance">
+                Ready
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="section">
+            <button class="btn btn-primary" onclick="getMyLocation()">📍 My Location</button>
+            <button class="btn btn-danger" onclick="clearAllEvents()">🗑️ Clear All Events</button>
+        </div>
+    </div>
+
+    <script>
+        let map, trackerMarker, radiusCircle;
+        let eventMarkers = [];
+        let trackerLat = 28.6139;  // Default: Delhi
+        let trackerLon = 77.2090;
+        let currentRadius = 5;
+        let isCreatingEvent = false;
+
+        // Initialize map
+        function initMap() {
+            map = L.map('map').setView([trackerLat, trackerLon], 13);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 18
+            }).addTo(map);
+
+            // Create tracker marker (draggable)
+            trackerMarker = L.marker([trackerLat, trackerLon], {
+                draggable: true,
+                icon: L.icon({
+                    iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI1MCI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMTUiIGZpbGw9IiMyMTk2RjMiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iNCIvPjxwYXRoIGQ9Ik0yMCAyMCBMMjAgNTAiIHN0cm9rZT0iIzIxOTZGMyIgc3Ryb2tlLXdpZHRoPSI0Ii8+PC9zdmc+',
+                    iconSize: [40, 50],
+                    iconAnchor: [20, 50]
+                })
+            }).addTo(map);
+
+            trackerMarker.bindPopup("<strong>📍 Your Tracker</strong><br>Drag me to move!");
+
+            // Create radius circle
+            radiusCircle = L.circle([trackerLat, trackerLon], {
+                radius: currentRadius * 1000,
+                color: '#2196F3',
+                fillColor: '#2196F3',
+                fillOpacity: 0.1,
+                weight: 2
+            }).addTo(map);
+
+            // Handle tracker drag
+            trackerMarker.on('dragend', function(e) {
+                const pos = e.target.getLatLng();
+                trackerLat = pos.lat;
+                trackerLon = pos.lng;
+                radiusCircle.setLatLng([trackerLat, trackerLon]);
+                searchEvents();
+            });
+
+            // Handle map click for creating events
+            map.on('click', function(e) {
+                if (isCreatingEvent) {
+                    createEventAt(e.latlng.lat, e.latlng.lng);
+                }
+            });
+
+            // Update radius slider
+            document.getElementById('radiusSlider').addEventListener('input', function(e) {
+                currentRadius = parseInt(e.target.value);
+                document.getElementById('radiusValue').textContent = currentRadius + ' km';
+                radiusCircle.setRadius(currentRadius * 1000);
+            });
+
+            // Load initial data
+            searchEvents();
+            updateTotalCount();
+        }
+
+        // Search for events within radius
+        async function searchEvents() {
+            try {
+                const response = await fetch('http://localhost:5000/api/events/search', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        lat: trackerLat,
+                        lon: trackerLon,
+                        radius: currentRadius
+                    })
+                });
+
+                const data = await response.json();
+
+                // Clear existing markers
+                eventMarkers.forEach(marker => map.removeLayer(marker));
+                eventMarkers = [];
+
+                // Add markers for events within radius
+                data.events.forEach(event => {
+                    const marker = L.circleMarker([event.lat, event.lon], {
+                        radius: 6,
+                        fillColor: '#4CAF50',
+                        color: '#fff',
+                        weight: 2,
+                        fillOpacity: 0.9
+                    }).addTo(map);
+
+                    marker.bindPopup(`
+                        <strong>${event.name}</strong><br>
+                        Distance: ${event.distance} km<br>
+                        Location: ${parseFloat(event.lat).toFixed(4)}, ${parseFloat(event.lon).toFixed(4)}
+                    `);
+
+                    eventMarkers.push(marker);
+                });
+
+                // Update stats
+                document.getElementById('visibleCount').textContent = data.count;
+                document.getElementById('performance').textContent = `⚡ Found ${data.count} events in ${data.time_ms}ms`;
+
+            } catch (error) {
+                console.error('Error searching events:', error);
+                document.getElementById('performance').textContent = '❌ Search failed';
+            }
+        }
+
+        // Get total event count
+        async function updateTotalCount() {
+            try {
+                const response = await fetch('http://localhost:5000/api/events/count');
+                const data = await response.json();
+                document.getElementById('totalCount').textContent = data.count;
+            } catch (error) {
+                console.error('Error getting count:', error);
+            }
+        }
+
+        // Start event creation mode
+        function startCreateMode() {
+            const eventName = document.getElementById('eventName').value.trim();
+            
+            if (!eventName) {
+                alert('Please enter an event name first!');
+                return;
+            }
+
+            isCreatingEvent = true;
+            document.getElementById('createBtn').classList.add('creating-mode');
+            document.getElementById('createBtn').textContent = '⏳ Click on Map...';
+            document.getElementById('createInstruction').style.display = 'block';
+            map.getContainer().style.cursor = 'crosshair';
+        }
+
+        // Create event at clicked location
+        async function createEventAt(lat, lon) {
+            const eventName = document.getElementById('eventName').value.trim();
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/events/create', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        name: eventName,
+                        lat: lat,
+                        lon: lon
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Reset create mode
+                    isCreatingEvent = false;
+                    document.getElementById('createBtn').classList.remove('creating-mode');
+                    document.getElementById('createBtn').textContent = '📍 Click Map to Place Event';
+                    document.getElementById('createInstruction').style.display = 'none';
+                    document.getElementById('eventName').value = '';
+                    map.getContainer().style.cursor = '';
+
+                    // Refresh map
+                    await searchEvents();
+                    await updateTotalCount();
+
+                    alert(`✅ ${data.message}`);
+                }
+            } catch (error) {
+                console.error('Error creating event:', error);
+                alert('❌ Failed to create event');
+            }
+        }
+
+        // Get user's current location
+        function getMyLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        trackerLat = position.coords.latitude;
+                        trackerLon = position.coords.longitude;
+                        map.setView([trackerLat, trackerLon], 13);
+                        trackerMarker.setLatLng([trackerLat, trackerLon]);
+                        radiusCircle.setLatLng([trackerLat, trackerLon]);
+                        searchEvents();
+                    },
+                    error => {
+                        alert('Could not get your location');
+                    }
+                );
+            } else {
+                alert('Geolocation not supported by your browser');
+            }
+        }
+
+        // Clear all events
+        async function clearAllEvents() {
+            if (!confirm('Are you sure you want to delete all events? This cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5000/api/events/clear', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`✅ Cleared ${data.cleared} events`);
+                    searchEvents();
+                    updateTotalCount();
+                }
+            } catch (error) {
+                console.error('Error clearing events:', error);
+                alert('❌ Failed to clear events');
+            }
+        }
+
+        // Initialize on load
+        window.onload = initMap;
+    </script>
+</body>
+</html>
